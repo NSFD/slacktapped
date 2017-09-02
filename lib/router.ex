@@ -21,11 +21,11 @@ defmodule Slacktapped.Router do
           |> put_resp_content_type("application/json")
           |> send_resp(200, Poison.encode!(response))
       {:error, _} ->
-        conn |> send_resp(404, "")
+        conn |> send_resp(501, "")
     end
   end
 
   match _ do
     send_resp(conn, 404, "Page not found.")
   end
-end 
+end
