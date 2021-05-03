@@ -19,16 +19,19 @@ defmodule Slacktapped do
     redis_url = System.get_env("REDIS_URL") || "redis://localhost:6379"
 
     children = [
-      Plug.Adapters.Cowboy.child_spec(:http, Slacktapped.Router, [], port: cowboy_port),
+      { Plug.Cowboy, scheme: :http, plug: Slacktapped.Router, port: cowboy_port },
       worker(Redix, [
         redis_url,
         [name: :redix]
-      ])
+      ]),
+      worker(Slacktapped.Scheduler, [])
     ]
 
     Logger.info("[Server] Started")
 
-    Supervisor.start_link(children, strategy: :one_for_one)
+    opts = [strategy: :one_for_one, name: Slacktapped.Supervisor]
+
+    Supervisor.start_link(children, opts)
   end
 
   @doc """
@@ -84,10 +87,10 @@ defmodule Slacktapped do
               "image_url" => nil,
               "mrkdwn_in" => ["text"],
               "text" => "<https://untappd.com/user/|> is drinking " <>
-                "<https://untappd.com/b//|> (, % ABV).\n" <>
+                "<https://untappd.com/beer/|> (, % ABV).\n" <>
                 "<https://untappd.com/user//checkin/|Toast »>",
               "title" => nil,
-              "title_link" => "https://untappd.com/b//"
+              "title_link" => "https://untappd.com/beer/"
             }
           ]
         }
@@ -118,7 +121,7 @@ defmodule Slacktapped do
   Determines if a checkin is eligible to be processed.
 
   Checkin is ineligible if:
-  
+
   1. The checkin_comment contains the text "#shh".
   2. There is no beer (sad).
 
